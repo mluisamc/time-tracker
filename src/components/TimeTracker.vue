@@ -6,13 +6,13 @@
     <div class="flex-initial w-22 text-slate-300 p-3">
       /<span>{{currentHours}}</span>:<span>{{currentMinutes}}</span>:<span>{{currentSeconds}}</span>
     </div>
-    <button v-show="workStatus != 'online'" @click="stopwatch.start()" class="bg-green-300 hover:bg-green-400 text-white font-bold py-2 px-4 rounded-full flex-initial w-32 m-1">
+    <button v-show="workStatus != 'online'" @click="this.open()" class="bg-green-300 hover:bg-green-400 text-white font-bold py-2 px-4 rounded-full flex-initial w-32 m-1">
       Entrar
     </button>
-    <button v-show="workStatus == 'online'" @click="stopwatch.pause()" class="bg-gray-300 hover:bg-gray-400 text-white font-bold py-2 px-4 rounded-full flex-initial w-32 m-1">
+    <button v-show="workStatus == 'online'" @click="this.pause()" class="bg-gray-300 hover:bg-gray-400 text-white font-bold py-2 px-4 rounded-full flex-initial w-32 m-1">
       Pausar
     </button>
-    <button v-show="workStatus == 'online'" @click="stopwatch.reset()" class="bg-red-400 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-full flex-initial w-32 m-1">
+    <button v-show="workStatus == 'online'" @click="this.close()" class="bg-red-400 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-full flex-initial w-32 m-1">
       Salir
     </button>
     <div class="flex -space-x-2 overflow-hidden flex-initial w-12 m-1">
@@ -89,7 +89,7 @@
 </script>
 
 <script>
-import { useStopwatch } from 'vue-timer-hook';
+  import { useStopwatch } from 'vue-timer-hook';
   import axios from 'axios'
   import moment from 'moment';
 
@@ -112,7 +112,8 @@ import { useStopwatch } from 'vue-timer-hook';
         currentMinutes : 0,
         currentHours : 0,
         employeeId: "",
-        is_data_fetched: false
+        is_data_fetched: false,
+        isRunning : false
       }
     },
     mounted () {
@@ -128,5 +129,49 @@ import { useStopwatch } from 'vue-timer-hook';
               this.is_data_fetched = true;
             })
     },
+    // actions
+  methods: {
+      open() {
+        reqInstance.post('https://api-test.sesametime.com/schedule/v1/work-entries/clock-in', {
+            "employeeId": this.employeeId,
+            "workEntryIn": {
+              "coordinates": {
+                "latitude": null,
+                "longitude": null
+              }
+            }
+          })
+          .then(() => {
+            stopwatch.start()
+            this.isRunning = true
+            this.workStatus = "online"
+            })
+      },
+      pause() {
+        if(this.isRunning){
+          stopwatch.pause()
+          this.isRunning = false
+        }
+        else
+          stopwatch.start()
+      },
+      close() {
+        reqInstance.post('https://api-test.sesametime.com/schedule/v1/work-entries/clock-out', {
+            "employeeId": this.employeeId,
+            "workEntryOut": {
+              "coordinates": {
+                "latitude": null,
+                "longitude": null
+              }
+            }
+          })
+          .then(() => {
+            stopwatch.reset()
+            stopwatch.pause()
+            this.isRunning = false
+            this.workStatus = "offline"
+            })
+      }
+    }
   }
 </script>
