@@ -1,18 +1,18 @@
 <template>
-  <div class="flex bg-gray-100 rounded-full p-3">
-    <div class="flex-initial w-10 text-black p-3">
+  <div class="flex bg-gray-100 rounded-full p-3" v-if="is_data_fetched">
+    <div class="flex-initial w-12 text-black p-3">
       <span>{{stopwatch.hours}}</span>:<span>{{stopwatch.minutes}}</span>:<span>{{stopwatch.seconds}}</span>
     </div>
-    <div class="flex-initial w-16 text-slate-300 p-3">
-      /<span>{{stopwatch.hours}}</span>:<span>{{stopwatch.minutes}}</span>:<span>{{stopwatch.seconds}}</span>
+    <div class="flex-initial w-22 text-slate-300 p-3">
+      /<span>{{currentHours}}</span>:<span>{{currentMinutes}}</span>:<span>{{currentSeconds}}</span>
     </div>
-    <button @click="stopwatch.start()" class="bg-green-300 hover:bg-green-400 text-white font-bold py-2 px-4 rounded-full flex-initial w-32 m-1">
+    <button v-show="workStatus != 'online'" @click="stopwatch.start()" class="bg-green-300 hover:bg-green-400 text-white font-bold py-2 px-4 rounded-full flex-initial w-32 m-1">
       Entrar
     </button>
-    <button @click="stopwatch.pause()" class="bg-gray-300 hover:bg-gray-400 text-white font-bold py-2 px-4 rounded-full flex-initial w-32 m-1">
+    <button v-show="workStatus == 'online'" @click="stopwatch.pause()" class="bg-gray-300 hover:bg-gray-400 text-white font-bold py-2 px-4 rounded-full flex-initial w-32 m-1">
       Pausar
     </button>
-    <button @click="stopwatch.reset()" class="bg-red-400 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-full flex-initial w-32 m-1">
+    <button v-show="workStatus == 'online'" @click="stopwatch.reset()" class="bg-red-400 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-full flex-initial w-32 m-1">
       Salir
     </button>
     <div class="flex -space-x-2 overflow-hidden flex-initial w-12 m-1">
@@ -84,11 +84,49 @@
 </template>
 
 <script setup>
-import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue'
-import { ChevronDownIcon, ChevronLeftIcon } from '@heroicons/vue/20/solid'
-import { useStopwatch } from 'vue-timer-hook';
+  import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue'
+  import { ChevronDownIcon, ChevronLeftIcon } from '@heroicons/vue/20/solid'
+</script>
 
-const stopwatch = useStopwatch();
-stopwatch.reset();
-stopwatch.pause();
+<script>
+import { useStopwatch } from 'vue-timer-hook';
+  import axios from 'axios'
+  import moment from 'moment';
+
+  const reqInstance = axios.create({
+        headers: {
+            Authorization : `Bearer ${localStorage.getItem('access_token')}`
+            }
+      });
+  
+  const stopwatch = useStopwatch();
+  stopwatch.reset();
+  stopwatch.pause();
+
+  export default {
+    // state
+    data() {
+      return {
+        workStatus : "offline",
+        currentSeconds : 0,
+        currentMinutes : 0,
+        currentHours : 0,
+        employeeId: "",
+        is_data_fetched: false
+      }
+    },
+    mounted () {
+      reqInstance.get('https://api-test.sesametime.com/schedule/v1/work-entries')
+          .then(response => {
+              let lastEntry = response.data.data.sort((b, a) => a.createdAt.localeCompare(b.createdAt))[0]
+              this.workStatus = lastEntry.employee.workStatus;
+              let duration = moment.duration({'seconds' : lastEntry.workedSeconds});
+              this.currentSeconds = duration._data.seconds;
+              this.currentMinutes = duration._data.minutes;
+              this.currentHours = duration._data.hours;
+              this.employeeId = lastEntry.employee.id;
+              this.is_data_fetched = true;
+            })
+    },
+  }
 </script>
